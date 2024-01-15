@@ -2,115 +2,141 @@
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Math;
 
 namespace AkelonTT3
 {
     class Program
     {
+        static XMLFileReader reader;
+        static XMLFileWriter writer;
+
         static void Main(string[] args)
         {
+            bool on = true;
+            while (on)
+            {
+                Console.WriteLine("Введите путь до рабочего файла:");
+                string? filePath = Console.ReadLine();
+                if (filePath != null)
+                {
+                    try
+                    {
+                        var wb = new XLWorkbook(filePath);
+                        reader = new XMLFileReader(wb);
+                        writer = new XMLFileWriter(wb);
+                        on = false;
+                    }
+                    catch
+                    {
+                        Console.WriteLine("Неверный путь до файла или файл уже используется другим процессом.");
+                        Console.WriteLine("Попробуйте снова.");
+                        Console.WriteLine("==================================================================");
+                        break;
+                    }
+                }
+            }
             WorkCycle();
         }
 
         static void WorkCycle()
         {
-            Console.WriteLine("Введите путь до рабочего файла:");
-            string? filePath = Console.ReadLine();
-            using (var book = new XLWorkbook(filePath))
+            bool on = true, case1 = true, case2 = true, case3 = true;
+            string? option, productName, client, contact, year, month;
+            while (on)
             {
-                bool on = true, case1 = true, case2 = true, case3 = true;
-                string? option, productName, client, contact, year, month;
-                while (on)
+                Console.WriteLine("Что вы хотите сделать? (введите номер команды)");
+                Console.WriteLine("1 - по наименованию товара получить данные о клиентах, заказавших товар.");
+                Console.WriteLine("2 - запрос на изменение контактного лица клиента.");
+                Console.WriteLine("3 - определить золотого клиента.");
+                Console.WriteLine("4 - завершить работу приложения.");
+                Console.WriteLine("==================================================================");
+                option = Console.ReadLine();
+                switch (option)
                 {
-                    Console.WriteLine("Что вы хотите сделать? (введите номер команды)");
-                    Console.WriteLine("1 - по наименованию товара получить данные о клиентах, заказавших товар.");
-                    Console.WriteLine("2 - запрос на изменение контактного лица клиента.");
-                    Console.WriteLine("3 - определить золотого клиента.");
-                    Console.WriteLine("4 - завершить работу приложения.");
-                    option = Console.ReadLine();
-                    switch (option)
-                    {
-                        case "1":
-                            while (case1)
+                    case "1":
+                        while (case1)
+                        {
+                            Console.WriteLine("Введите название товара:");
+                            productName = Console.ReadLine();
+                            if (productName != null)
                             {
-                                Console.WriteLine("Введите название товара:");
-                                productName = Console.ReadLine();
-                                if (productName != null)
+                                GetClientRequestsData(productName);
+                                case1 = false;
+                            }
+                        }
+                        case1 = true;
+                        productName = null;
+                        Console.WriteLine("==================================================================");
+                        break;
+                    case "2":
+                        while (case2)
+                        {
+                            Console.WriteLine("Введите название организации:");
+                            client = Console.ReadLine();
+                            if (client != null)
+                            {
+                                Console.WriteLine("Введите ФИО контактного лица организации:");
+                                contact = Console.ReadLine();
+                                if (contact != null)
                                 {
-                                    GetClientRequestsData(book, productName);
-                                    case1 = false;
+                                    ChangeClientContact(client, contact);
+                                    case2 = false;
                                 }
                             }
-                            case1 = true;
-                            break;
-                        case "2":
-                            while (case2)
+                        }
+                        case2 = true;
+                        client = null;
+                        contact = null;
+                        Console.WriteLine("==================================================================");
+                        break;
+                    case "3":
+                        while (case3)
+                        {
+                            Console.WriteLine("Введите год, по которому производится выборка:");
+                            year = Console.ReadLine();
+                            if (int.TryParse(year, out int yearNum))
                             {
-                                Console.WriteLine("Введите название организации:");
-                                client = Console.ReadLine();
-                                if (client != null)
+                                Console.WriteLine("Введите мемсяц, по которому производится выборка, в числовом виде:");
+                                month = Console.ReadLine();
+                                if (int.TryParse(month, out int monthNum))
                                 {
-                                    Console.WriteLine("Введите ФИО контактного лица организации:");
-                                    contact = Console.ReadLine();
-                                    if (contact != null)
-                                    {
-                                        ChangeClientContact(book, client, contact);
-                                        case2 = false;
-                                    }
+                                    GetGoldenClient(yearNum, monthNum);
+                                    case3 = false;
                                 }
                             }
-                            case2 = true;
-                            break;
-                        case "3":
-                            while (case3)
-                            {
-                                Console.WriteLine("Введите год, по которому производится выборка:");
-                                year = Console.ReadLine();
-                                if (int.TryParse(year, out int yearNum))
-                                {
-                                    Console.WriteLine("Введите мемсяц, по которому производится выборка, в числовом виде:");
-                                    month = Console.ReadLine();
-                                    if (int.TryParse(month, out int monthNum))
-                                    {
-                                        GetGoldenClient(book, yearNum, monthNum);
-                                        case3 = false;
-                                    }
-                                }
-                            }
-                            case3 = false;
-                            break;
-                        case "4":
-                            on = false;
-                            break;
-                        default:
-                            Console.WriteLine("Неизвестная команда.");
-                            break;
-                    }
+                        }
+                        case3 = false;
+                        year = null;
+                        month = null;
+                        Console.WriteLine("==================================================================");
+                        break;
+                    case "4":
+                        on = false;
+                        break;
+                    default:
+                        Console.WriteLine("Неизвестная команда.");
+                        Console.WriteLine("==================================================================");
+                        break;
                 }
             }
         }
 
-        static void GetClientRequestsData(XLWorkbook wb, string productName)
+        static void GetClientRequestsData(string productName)
         {
-            // Получаем таблицу товары
-            var wsProducts = wb.Worksheet("Товары");
-            // вытаскиваем все заполненные строки кроме шапки
-            var rowsP = wsProducts.RangeUsed().RowsUsed().Skip(1);
-            // получаем строку с нужным товаром
-            var targetProductRow = rowsP.FirstOrDefault(r => r.Cell(2).GetValue<string>() == productName, null);
+            // получаем таблицу товары без шапки
+            var rowsProduct = reader.GetSheetRows("Товары");
+            var targetProductRow = rowsProduct.FirstOrDefault(r => r.Cell(2).GetValue<string>() == productName, null);
             if (targetProductRow == null)
             {
                 Console.WriteLine("Товар не найден");
                 return;
             }
-            // получаем код товаром
             int productCode = targetProductRow.Cell(1).GetValue<int>();
-            // получаем таблицу заявки
-            var wsRequests = wb.Worksheet("Заявки");
-            // таблицу без шапки
-            var rowsR = wsRequests.RangeUsed().RowsUsed().Skip(1);
-            // строки с кодом товара
-            var requestRows = rowsR.Where(r => r.Cell(2).GetValue<int>() == productCode).ToList();
+            // получаем таблицу заявки без шапки
+            var rowsRequest = reader.GetSheetRows("Заявки");
+            var requestRows = rowsRequest.Where(r => r.Cell(2).GetValue<int>() == productCode).ToList();
             if (requestRows.Count == 0)
             {
                 Console.WriteLine("Заявок по данному товару не найдено");
@@ -124,16 +150,13 @@ namespace AkelonTT3
                 id = requestRows[i].Cell(3).GetValue<int>();
                 if (!clientsId.Contains(id)) clientsId.Add(id);
             }
-            // получаем данные о клиентах
-            var wsClients = wb.Worksheet("Клиенты");
-            // таблицу без шапки
-            var rowsC = wsClients.RangeUsed().RowsUsed().Skip(1);
-            //строки с кодом клиента
+            // получаем таблицу клиенты без шапки
+            var rowsClient = reader.GetSheetRows("Клиенты");
             List<IXLRangeRow> clients = new List<IXLRangeRow>();
             IXLRangeRow? clRow = null;
             for(int i = 0; i < clientsId.Count; i++)
             {
-                clRow = rowsC.FirstOrDefault(r => r.Cell(1).GetValue<int>() == clientsId[i], null);
+                clRow = rowsClient.FirstOrDefault(r => r.Cell(1).GetValue<int>() == clientsId[i], null);
                 if (clRow != null) clients.Add(clRow);
             }
             Console.WriteLine($"Товар {productName}:");
@@ -145,26 +168,25 @@ namespace AkelonTT3
                 Console.WriteLine($"\tДата заказа: {requestRows[j].Cell(6).GetValue<DateTime>().ToString()}");
                 Console.WriteLine($"\tОбъём заказа: {requestRows[j].Cell(5).GetValue<int>()} " +
                     $"[{targetProductRow.Cell(3).GetValue<string>()}]");
-                Console.WriteLine($"Стоимость заказа: {targetProductRow.Cell(4).GetValue<decimal>() *
+                Console.WriteLine($"\tСтоимость заказа: {targetProductRow.Cell(4).GetValue<decimal>() *
                     (decimal)requestRows[j].Cell(5).GetValue<int>()} [Рублей]");
                 j++;
             }
         }
 
-        static void ChangeClientContact(XLWorkbook wb, string client, string contact)
+        static void ChangeClientContact(string client, string contact)
         {
-            // получаем данные о клиентах
-            var wsClients = wb.Worksheet("Клиенты");
-            var rows = wsClients.RangeUsed().RowsUsed().Skip(1);
-            var targetClientRow = rows.FirstOrDefault(r => r.Cell(2).GetValue<string>() == client, null);
+            // получаем таблицу клиенты без шапки
+            var rowsClient = reader.GetSheetRows("Клиенты");
+            var targetClientRow = rowsClient.FirstOrDefault(r => r.Cell(2).GetValue<string>() == client, null);
             if (targetClientRow != null) 
             {
                 string oldContact = targetClientRow.Cell(4).GetValue<string>();
-                targetClientRow.Cell(4).SetValue(contact);
-                wb.Save();
+                writer.WtiteDataInCell(targetClientRow.Cell(4), contact);
+                writer.SaveFileData();
                 Console.WriteLine($"Было изменено контактное лицо организации {client}.");
-                Console.WriteLine($"Старое контактное лицо: {oldContact}");
-                Console.WriteLine($"Новое контактное лицо: {targetClientRow.Cell(4).GetValue<string>()}");
+                Console.WriteLine($"\tСтарое контактное лицо: {oldContact}");
+                Console.WriteLine($"\tНовое контактное лицо: {targetClientRow.Cell(4).GetValue<string>()}");
             }
             else
             {
@@ -172,11 +194,10 @@ namespace AkelonTT3
             }
         }
 
-        static void GetGoldenClient(XLWorkbook wb, int year, int month)
+        static void GetGoldenClient(int year, int month)
         {
-            // таблица с заказами
-            var wsRequests = wb.Worksheet("Заявки");
-            var rowsR = wsRequests.RangeUsed().RowsUsed().Skip(1);
+            // таблица с заказами без шапки
+            var rowsRequest = reader.GetSheetRows("Заявки");
             DateTime dtStart = new DateTime(year, month, 1);
             if (month == 12)
             {
@@ -188,7 +209,7 @@ namespace AkelonTT3
                 month++;
             }
             DateTime dtEnd = new DateTime(year, month, 1);
-            var checkedRequests = rowsR.Where(r => r.Cell(6).GetValue<DateTime>() >= dtStart &&
+            var checkedRequests = rowsRequest.Where(r => r.Cell(6).GetValue<DateTime>() >= dtStart &&
                 r.Cell(6).GetValue<DateTime>() < dtEnd).ToList();
             // сохраняем уникальные id клиентов в список
             List<int> clientsId = new List<int>();
@@ -211,11 +232,10 @@ namespace AkelonTT3
             // я решил взять первого попавшегося
             var result = dict.OrderByDescending(r => r.Value).First();
             // вытаскиваем злотого клиента из таблицы с клиентами
-            var wsClients = wb.Worksheet("Клиенты");
-            var goldenClient = wsClients.RangeUsed().RowsUsed().Skip(1)
+            var goldenClient = reader.GetSheetRows("Клиенты")
                 .First(r => r.Cell(1).GetValue<int>() == result.Key);
             Console.WriteLine("Золтой клиент:");
-            Console.WriteLine($"Организация {goldenClient.Cell(2).GetValue<string>()}");
+            Console.WriteLine($"\tОрганизация {goldenClient.Cell(2).GetValue<string>()}");
         }
     }
 }
